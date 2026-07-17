@@ -241,15 +241,17 @@ public class McpServerConfiguration {
                 },
                 "count": {
                   "type": "integer",
-                  "description": "最多返回的命中条数，500~10000000",
+                  "description": "最多返回的命中条数，500~1000，默认500",
                   "minimum": 500,
-                  "maximum": 10000000
+                  "maximum": 1000,
+                  "default": 500
                 },
                 "radius": {
                   "type": "number",
-                  "description": "相似度半径阈值，0~1，越小结果越严格（相似度越高）",
+                  "description": "相似度半径阈值，0~1，越小结果越严格（相似度越高），默认0.7",
                   "minimum": 0,
-                  "maximum": 1
+                  "maximum": 1,
+                  "default": 0.7
                 },
                 "doAligner": {
                   "type": "boolean",

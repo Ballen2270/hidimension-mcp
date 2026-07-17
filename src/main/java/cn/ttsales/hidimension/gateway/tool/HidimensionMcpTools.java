@@ -87,10 +87,14 @@ public class HidimensionMcpTools {
 
             ObjectNode requestBody = objectMapper.createObjectNode();
             requestBody.set("db", input.get("db"));
-            requestBody.put("count", input.has("count") ? input.get("count").asInt() : 1000);
-            requestBody.put("radius", input.has("radius") ? (float) input.get("radius").asDouble() : 0.0f);
-            requestBody.put("doAligner", input.has("doAligner") ? input.get("doAligner").asBoolean() : true);
-            requestBody.put("doLink", input.has("doLink") ? input.get("doLink").asBoolean() : true);
+            int count = input.path("count").asInt(1000);
+            double radius = input.path("radius").asDouble(0.0);
+            boolean doAligner = input.path("doAligner").asBoolean(true);
+            boolean doLink = input.path("doLink").asBoolean(true);
+            requestBody.put("count", count);
+            requestBody.put("radius", radius);
+            requestBody.put("doAligner", doAligner);
+            requestBody.put("doLink", doLink);
             requestBody.set("seqList", input.get("seqList"));
 
             String requestBodyStr;
@@ -101,8 +105,7 @@ public class HidimensionMcpTools {
             }
 
             log.info("Struct embedding search pro: db={}, count={}, radius={}, seqCount={}",
-                    input.get("db"), input.get("count").asInt(),
-                    input.has("radius") ? input.get("radius").asDouble() : 0.0, input.get("seqList").size());
+                    input.get("db"), count, radius, input.get("seqList").size());
 
             return client.createStructEmbeddingSearchPro(email, password, requestBodyStr)
                     .flatMap(created -> chainResult(created))
@@ -124,7 +127,7 @@ public class HidimensionMcpTools {
             return Mono.just(errorJson("Task created but no id/res in response"));
         }
         log.info("Task created: userTaskId={}, taskId={}", userTaskId, taskId);
-        return client.pollThenResult(created.cookie(), userTaskId, taskId,
+        return client.pollThenResult(created.cookie(), created.taskPath(), userTaskId, taskId,
                         props.getPolling().getInterval(), props.getPolling().getTimeout())
                 .map(result -> {
                     try {

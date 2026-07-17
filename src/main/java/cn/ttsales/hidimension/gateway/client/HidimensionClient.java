@@ -7,9 +7,11 @@ import io.netty.handler.timeout.ReadTimeoutException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.util.DigestUtils;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
@@ -40,14 +42,16 @@ public class HidimensionClient {
     private static final Duration COOKIE_FRESH_TTL = Duration.ofHours(20);
 
     public HidimensionClient(HidimensionProperties props, ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
-        this.webClient = WebClient.builder()
-                .baseUrl(props.getBaseUrl())
-                .build();
+        this(WebClient.builder().baseUrl(props.getBaseUrl()).build(), objectMapper);
     }
 
-    /** 创建任务的结果：带回所用 cookie，供后续轮询复用 */
-    public record CreatedTask(String cookie, JsonNode info) {
+    HidimensionClient(WebClient webClient, ObjectMapper objectMapper) {
+        this.webClient = webClient;
+        this.objectMapper = objectMapper;
+    }
+
+    /** 创建任务的结果：带回所用 cookie 和任务类型路径，供后续轮询复用 */
+    public record CreatedTask(String cookie, String taskPath, JsonNode info) {
     }
 
     private record CachedCookie(String cookie, Instant createdAt) {
@@ -75,11 +79,12 @@ public class HidimensionClient {
 
     /** 调 hidimension /auth/login 换 cookie。凭据错抛 HidimensionAuthException */
     private Mono<String> login(String email, String password) {
+        String passwordMd5 = md5Password(password);
         return webClient.post()
                 .uri(uriBuilder -> uriBuilder
                         .path("/auth/login")
                         .queryParam("email", email)
-                        .queryParam("password", password)
+                        .queryParam("password", passwordMd5)
                         .build())
                 .retrieve()
                 .onStatus(status -> status.isError(), response ->
@@ -98,6 +103,10 @@ public class HidimensionClient {
                 });
     }
 
+    static String md5Password(String password) {
+        return DigestUtils.md5DigestAsHex(password.getBytes(StandardCharsets.UTF_8));
+    }
+
     // ──────────────────────────── 创建任务(cookie 缓存 + 失效重试) ────────────────────────────
 
     public Mono<CreatedTask> createProteinStructurePredict(String email, String password, String requestBody) {
@@ -114,27 +123,28 @@ public class HidimensionClient {
     private Mono<CreatedTask> doCreate(String email, String password, String body, String path) {
         return obtainCookie(email, password)
                 .flatMap(cookie -> postJson(path, cookie, body)
-                        .map(info -> new CreatedTask(cookie, info)))
+                        .map(info -> new CreatedTask(cookie, path, info)))
                 .onErrorResume(HidimensionAuthException.class, e -> {
                     log.info("Cookie invalid for {}, re-login and retry create", email);
                     invalidateCookie(email);
                     return loginFresh(email, password)
                             .flatMap(cookie -> postJson(path, cookie, body)
-                                    .map(info -> new CreatedTask(cookie, info)));
+                                    .map(info -> new CreatedTask(cookie, path, info)));
                 });
     }
 
     // ──────────────────────────── 查询 / 取结果 / 轮询 ────────────────────────────
 
-    public Mono<JsonNode> getTask(String cookie, String userTaskId) {
+    public Mono<JsonNode> getTask(String cookie, String taskPath, String userTaskId) {
         return webClient.get()
-                .uri("/task/{userTaskId}", userTaskId)
+                .uri(taskPath + "/{userTaskId}", userTaskId)
                 .header("Cookie", cookie)
                 .retrieve()
                 .onStatus(status -> status.isError(), response ->
                         response.bodyToMono(String.class)
                                 .flatMap(b -> Mono.error(new HidimensionApiException("getTask failed: " + b))))
                 .bodyToMono(JsonNode.class)
+                .switchIfEmpty(Mono.error(new HidimensionApiException("getTask returned an empty response")))
                 .flatMap(this::extractData);
     }
 
@@ -152,17 +162,18 @@ public class HidimensionClient {
 
     /**
      * 轮询任务直到终态，然后取结果。{@code Mono.expand} 非阻塞递归。
-     * <p>注意 hidimension 两个 id 不同：UserTaskInfo.id→/task/{userTaskId} 查状态；UserTaskInfo.res→/task-res/{taskId} 取结果。
+     * <p>注意 hidimension 两个 id 不同：UserTaskInfo.id 通过创建任务的同类型路径查状态；
+     * UserTaskInfo.res 通过 /task-res/{taskId} 取结果。
      */
-    public Mono<JsonNode> pollThenResult(String cookie, String userTaskId, String taskId,
+    public Mono<JsonNode> pollThenResult(String cookie, String taskPath, String userTaskId, String taskId,
                                           Duration pollInterval, Duration timeout) {
-        return getTask(cookie, userTaskId)
+        return getTask(cookie, taskPath, userTaskId)
                 .expand(info -> {
                     byte status = readStatus(info);
                     if (isTerminal(status)) {
                         return Mono.empty();
                     }
-                    return Mono.delay(pollInterval).then(getTask(cookie, userTaskId));
+                    return Mono.delay(pollInterval).then(getTask(cookie, taskPath, userTaskId));
                 })
                 .last()
                 .timeout(timeout, Mono.error(new HidimensionTimeoutException(
