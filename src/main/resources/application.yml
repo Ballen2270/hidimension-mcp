@@ -1,0 +1,49 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: hidimension-mcp
+  ai:
+    mcp:
+      server:
+        name: hidimension-mcp
+        version: 1.0.0
+        type: ASYNC
+        protocol: STREAMABLE
+        annotation-scanner:
+          enabled: false
+
+hidimension:
+  base-url: http://localhost:8080/lab/api
+  polling:
+    interval: 3s
+    timeout: 300s
+  tools:
+    protein-structure-predict:
+      description: |
+        预测蛋白质氨基酸序列的三维结构，创建任务后阻塞轮询直到预测完成。
+        本工具会一直等待到任务结束（最长300s超时），请耐心等待，同一序列不要并发重复调用。
+
+        输入参数：
+        - recycleNums: 结构refinement迭代次数，整数1~8，默认4。值越大越慢但预测精度越高。
+        - seqList: 蛋白质序列列表，每项含 header(可选，序列名称) 与 seq(必填，标准氨基酸单字母序列，如"MKTVRQERLKSIVR...")。本任务仅允许1条序列，序列最大长度1000。
+
+        返回：结构预测结果（含pdb/cif等结构文件名)，请使用https://hydim.ustc.edu.cn/lab/file/+文件名的方式访问或者返回结果。
+        可能的异常：超时(300s未完成)会返回timeout错误；任务失败/参数不合法均会返回具体错误信息。
+    struct-embedding-search-pro:
+      description: |
+        基于蛋白质序列的结构嵌入向量，在指定数据库中做高灵敏度结构同源搜索，
+        创建任务后阻塞轮询直到搜索完成。
+        本工具会一直等待到任务结束（最长300s超时），请耐心等待。
+
+        输入参数：
+        - db: 要搜索的数据库列表(必填)，可选值：ncbi_refseq_archaea、ncbi_refseq_virus、ncbi_refseq_bacteria、ncbi_refseq_fungi、ncbi_refseq_plants、uniprotkb_swissprot、hidata_genome_cyanobacteria。至少选1个。
+        - count: 最多返回的命中条数，整数500~2000。
+        - radius: 相似度半径阈值，浮点数0~1，默认0。值越小结果越严格（相似度越高）。
+        - doAligner: 是否对命中序列做序列对齐，布尔值，默认true。
+        - doLink: 是否在结果中附带外部链接，布尔值，默认true。
+        - seqList: 蛋白质序列列表，每项含 header(可选，序列名称) 与 seq(必填，标准氨基酸单字母序列)。本任务仅允许1条序列，序列最大长度2000。
+
+        返回：搜索命中结果包含一个excel文件，请使用https://hydim.ustc.edu.cn/lab/file/+文件名的方式访问或者返回结果。
+        可能的异常：超时(300s未完成)会返回timeout错误；数据库名称不合法会返回参数错误；任务失败/取消均会返回具体错误信息。
