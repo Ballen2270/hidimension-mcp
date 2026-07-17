@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.handler.timeout.ReadTimeoutException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.util.DigestUtils;
@@ -43,6 +44,7 @@ public class HidimensionClient {
     /** 与 hidimension 前端保持一致：MD5(SALT + plaintextPassword) */
     private static final String PASSWORD_SALT = "497iF!98";
 
+    @Autowired
     public HidimensionClient(HidimensionProperties props, ObjectMapper objectMapper) {
         this(WebClient.builder().baseUrl(props.getBaseUrl()).build(), objectMapper);
     }
