@@ -40,6 +40,8 @@ public class HidimensionClient {
     private final ConcurrentHashMap<String, CachedCookie> cookieCache = new ConcurrentHashMap<>();
     /** cookie 视为新鲜的时长，需 < hidimension 端 24h cookie TTL - 单次轮询 300s */
     private static final Duration COOKIE_FRESH_TTL = Duration.ofHours(20);
+    /** 与 hidimension 前端保持一致：MD5(SALT + plaintextPassword) */
+    private static final String PASSWORD_SALT = "497iF!98";
 
     public HidimensionClient(HidimensionProperties props, ObjectMapper objectMapper) {
         this(WebClient.builder().baseUrl(props.getBaseUrl()).build(), objectMapper);
@@ -104,7 +106,7 @@ public class HidimensionClient {
     }
 
     static String md5Password(String password) {
-        return DigestUtils.md5DigestAsHex(password.getBytes(StandardCharsets.UTF_8));
+        return DigestUtils.md5DigestAsHex((PASSWORD_SALT + password).getBytes(StandardCharsets.UTF_8));
     }
 
     // ──────────────────────────── 创建任务(cookie 缓存 + 失效重试) ────────────────────────────
