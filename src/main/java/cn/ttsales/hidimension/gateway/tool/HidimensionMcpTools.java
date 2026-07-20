@@ -42,8 +42,8 @@ public class HidimensionMcpTools {
             }
 
             ObjectNode requestBody = objectMapper.createObjectNode();
-            int recycleNums = input.has("recycleNums") ? input.get("recycleNums").asInt() : 4;
-            requestBody.put("recycleNums", recycleNums);
+            int numStructures = input.has("numStructures") ? input.get("numStructures").asInt() : 1;
+            requestBody.put("numStructures", numStructures);
             if (!input.has("seqList") || !input.get("seqList").isArray()) {
                 return Mono.just(errorJson("Missing or invalid 'seqList' field — required array of [{header, seq}]"));
             }
@@ -56,12 +56,12 @@ public class HidimensionMcpTools {
                 return Mono.just(errorJson("Failed to serialize request: " + e.getMessage()));
             }
 
-            log.info("Protein structure predict: recycleNums={}, seqCount={}", recycleNums, input.get("seqList").size());
+            log.info("Protein structure predict V2: numStructures={}, seqCount={}", numStructures, input.get("seqList").size());
 
             return client.createProteinStructurePredict(email, password, requestBodyStr)
                     .flatMap(created -> chainResult(created))
                     .onErrorResume(e -> {
-                        log.error("Protein structure predict failed", e);
+                        log.error("Protein structure predict V2 failed", e);
                         return Mono.just(errorJson(e.getMessage()));
                     });
         });

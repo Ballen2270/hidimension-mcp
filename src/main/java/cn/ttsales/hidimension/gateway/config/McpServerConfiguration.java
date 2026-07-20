@@ -205,26 +205,26 @@ public class McpServerConfiguration {
             {
               "type": "object",
               "properties": {
-                "recycleNums": {
+                "numStructures": {
                   "type": "integer",
-                  "description": "结构refinement迭代次数，1~8，默认4",
+                  "description": "生成结构数量，1~3，默认1",
                   "minimum": 1,
-                  "maximum": 8,
-                  "default": 4
+                  "maximum": 3,
+                  "default": 1
                 },
                 "seqList": {
                   "type": "array",
-                  "description": "蛋白质序列列表，仅允许1条序列",
+                  "description": "多组件序列列表(1~20条)。header格式: 名称|类型(类型∈{protein,dna,rna,ligand})；seq按类型校验；所有seq总长≤500；至少含1条protein",
                   "items": {
                     "type": "object",
                     "properties": {
-                      "header": {"type": "string", "description": "序列名称（可选，最多512字符）"},
-                      "seq": {"type": "string", "description": "标准氨基酸单字母序列（必填，最多1000字符），如 MKTVRQERLKSIVR..."}
+                      "header": {"type": "string", "description": "格式 名称|类型，类型∈{protein,dna,rna,ligand}，如 my_seq|protein。类型取最后一个|后的部分"},
+                      "seq": {"type": "string", "description": "序列字符串(空格自动过滤)。protein:[ACDEFGHIKLMNPQRSTVWXY-]+、dna:[ACGT]+、rna:[AUCG]+、ligand:[0-9A-Z]{3}"}
                     },
                     "required": ["seq"]
                   },
                   "minItems": 1,
-                  "maxItems": 1
+                  "maxItems": 20
                 }
               },
               "required": ["seqList"]

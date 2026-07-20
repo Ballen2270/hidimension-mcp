@@ -114,7 +114,7 @@ public class HidimensionClient {
     // ──────────────────────────── 创建任务(cookie 缓存 + 失效重试) ────────────────────────────
 
     public Mono<CreatedTask> createProteinStructurePredict(String email, String password, String requestBody) {
-        return doCreate(email, password, requestBody, "/task/protein-structure-predict");
+        return doCreate(email, password, requestBody, "/task/protein-structure-predict-v2");
     }
 
     public Mono<CreatedTask> createStructEmbeddingSearchPro(String email, String password, String requestBody) {

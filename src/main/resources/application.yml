@@ -22,15 +22,23 @@ hidimension:
   tools:
     protein-structure-predict:
       description: |
-        预测蛋白质氨基酸序列的三维结构，创建任务后阻塞轮询直到预测完成。
+        预测蛋白质多组分复合物的三维结构（BioOFold2 V2），创建任务后阻塞轮询直到预测完成。
         本工具会一直等待到任务结束（最长300s超时），请耐心等待，同一序列不要并发重复调用。
 
         输入参数：
-        - recycleNums: 结构refinement迭代次数，整数1~8，默认4。值越大越慢但预测精度越高。
-        - seqList: 蛋白质序列列表，每项含 header(可选，序列名称) 与 seq(必填，标准氨基酸单字母序列，如"MKTVRQERLKSIVR...")。本任务仅允许1条序列，序列最大长度1000。
+        - numStructures: 生成结构数量，整数1~3，默认1。
+        - seqList: 多组件序列列表（1~20条），每条含 header 与 seq。
+          header 格式：名称|类型，类型取最后一个|后的值（小写），可选 protein / dna / rna / ligand。
+            示例：my_chain|protein，dna_1|dna，atp|ligand
+          seq 校验（按类型）：
+            protein: 标准氨基酸 [ACDEFGHIKLMNPQRSTVWXY-]+
+            dna:    [ACGT]+
+            rna:    [AUCG]+
+            ligand: CCD 三位残基名 [0-9A-Z]{3}（如 ATP、HEM）
+          约束：所有 seq 总长 ≤ 500，至少含 1 条 protein。
 
-        返回：结构预测结果（含pdb/cif等结构文件名)，请使用https://hydim.ustc.edu.cn/lab/file/+文件名的方式访问或者返回结果。
-        可能的异常：超时(300s未完成)会返回timeout错误；任务失败/参数不合法均会返回具体错误信息。
+        返回：结构预测结果（含pdb/cif等结构文件名），请使用https://hydim.ustc.edu.cn/lab/file/+文件名的方式访问或者返回结果。
+        可能的异常：超时（300s未完成）会返回timeout错误；任务失败/参数不合法均会返回具体错误信息。
     struct-embedding-search-pro:
       description: |
         基于蛋白质序列的结构嵌入向量，在指定数据库中做高灵敏度结构同源搜索，
